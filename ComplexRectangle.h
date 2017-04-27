@@ -7,20 +7,21 @@
 
 #include <complex>
 
-using Complex = std::complex<double>;
+using Real = float;
+using Complex = std::complex<Real>;
 
 class ComplexRectangle {
 public:
     ComplexRectangle(Complex bottomLeft, Complex topRight);
-    ComplexRectangle(Complex bottomLeft, double width, double height);
+    ComplexRectangle(Complex bottomLeft, Real width, Real height);
     Complex topRight;
     Complex bottomLeft;
     Complex getCenter();
-    double getWidth();
-    double getHeight();
+    Real getWidth();
+    Real getHeight();
 
-    static ComplexRectangle fromCenterRadius(Complex center, double radius);
-    static ComplexRectangle fromCenterWidthHeight(Complex center, double width, double height);
+    static ComplexRectangle fromCenterRadius(Complex center, Real radius);
+    static ComplexRectangle fromCenterWidthHeight(Complex center, Real width, Real height);
 };
 
 

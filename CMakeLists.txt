@@ -3,7 +3,7 @@ project(conformalpp)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp SphericalPoint.cpp SphericalPoint.h RiemannSphere.cpp RiemannSphere.h ComplexRectangle.cpp ComplexRectangle.h)
+set(SOURCE_FILES main.cpp SphericalPoint.cpp SphericalPoint.h RiemannSphere.cpp RiemannSphere.h ComplexRectangle.cpp ComplexRectangle.h Color.cpp Color.h)
 add_executable(conformalpp ${SOURCE_FILES})
 
 ## Mathpresso stuff

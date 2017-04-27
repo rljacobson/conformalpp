@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 
     std::cout << "Rendering projected pattern..." << std::endl;
 
-    img = sphere.getProjectedImage(ComplexRectangle::fromCenterWidthHeight(Complex(0, 0), 20.0, 10.0), sphere.getSize());
+    img = sphere.getProjectedImage(ComplexRectangle::fromCenterWidthHeight(Complex(0, 0), 10.0, 5.0), sphere.getSize());
 
     std::cout << "Done." << std::endl;
     ishow(img);

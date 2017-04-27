@@ -4,7 +4,7 @@
 
 #include <cmath>
 #include "RiemannSphere.h"
-#include "SphericalPoint.h"
+//#include "SphericalPoint.h"
 
 Complex IdentityFunction(Complex p){
     return p;
@@ -12,36 +12,70 @@ Complex IdentityFunction(Complex p){
 
 Complex EquirectangularProjection(Complex p){
     //Maps the rectangle [-pi, pi]X[-pi/2, pi/2] onto the plane.
-    return SphericalPoint::toComplex(p.real(), p.imag());
+
+    Real c, s, cotan;
+    //This computes cotan(phi/2 + M_PI_4).
+    cotan = std::tan(M_PI_4f - p.imag()/2.0f);
+    //This computes sin(theta) and cosine(theta) simultaneously.
+//    __sincos(p.real(), &s, &c);
+    s = std::sin(p.real());
+    c = std::cos(p.real());
+    return std::proj(Complex(c*cotan, s*cotan));
 }
+
+//Very fast approximation to atan2(y, x).
+Real fastATan2(Real y, Real x){
+    if(y>0){
+        if (x >= 0)
+            return M_PI_4f - M_PI_4f * (x - y) / (x + y);
+        else
+            return M_3PI_4f - M_PI_4f * (x + y) / (y - x);
+    }else{
+        if (x >= 0)
+            return -M_PI_4f + M_PI_4f * (x + y) / (x - y);
+    }
+    return -M_3PI_4f - M_PI_4f * (x - y) / (y + x);
+}
+
+//The std::floor() function is notoriously slow because it has
+//to implement the IEEE fp spec.
+Real fastFloorf(Real x){
+    int xi = static_cast<int>(x) - (x < static_cast<int>(x));
+    return static_cast<Real>(xi);
+}
+int fastFloori(Real x){
+    return static_cast<int>(x) - (x < static_cast<int>(x));
+}
+
+
 
 //Convenience function to map a point to its angle, and then
-//rescale to the interval [0, 255].
-double atan2color(double y, double x){
-    return (std::atan2(y, x) + M_PI)*M_1_PI*0.5*255.0;
+//rescale to the interval [0, 1].
+Real atan2color(Real y, Real x){
+    return (fastATan2(y, x) + M_PIf)*M_1_PI_2f;
 }
 
-// Does the math to compute hsb(h, 1, v)
-Colord hb2rgb(double h, double v) {
-    double x = v * (1.0 - std::abs(std::fmod(h , 2.0) - 1.0));
-
-    int hi = (int)((h - std::floor(h)) * 6.0);
-    switch (hi) {
+// Does the math to compute hsb(h, 1, v). Assumes h in [0,1]
+Colorf hb2rgb(Real h, Real v) {
+    h = ((h - fastFloorf(h)) * 6.0f);
+    Real x = v * (1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f));
+    int hi = (int)h;
+    switch(hi) {
         case 0:
-            return Colord({v, x, 0.0});
+            return Colorf({v, x, 0.0f});
         case 1:
-            return Colord({x, v, 0.0});
+            return Colorf({x, v, 0.0f});
         case 2:
-            return Colord({0.0, v, x});
+            return Colorf({0.0f, v, x});
         case 3:
-            return Colord({0.0, x, v});
+            return Colorf({0.0f, x, v});
         case 4:
-            return Colord({x, 0.0, v});
+            return Colorf({x, 0.0f, v});
         //case 5:
-        //    return Colord({v, 0.0, x});
+        //    return Colorf({v, 0.0, x});
     }
     //case 5:
-    return Colord({v, 0.0, x});
+    return Colorf({v, 0.0f, x});
 }
 
 RiemannSphere::RiemannSphere(): hasImage(false), preferredSize(RiemannSphere_DEFAULT_SIZE){
@@ -112,7 +146,7 @@ void RiemannSphere::setSize() {
 }
 
 void RiemannSphere::renderSpherePattern() {
-    ComplexRectangle window = ComplexRectangle(Complex(-M_PI, -M_PI_2), M_2_PI, M_PI);
+    ComplexRectangle window = ComplexRectangle(Complex(-M_PIf, -M_PI_2f), M_2_PIf, M_PIf);
     patternImage = renderPlanePattern(window, getSize(), EquirectangularProjection);
 }
 
@@ -122,28 +156,28 @@ Image RiemannSphere::renderPlanePattern(ComplexRectangle window, Size size, Comp
     Complex point;
 
     //Compute the vertical and horizontal points per pixel.
-    double vscale =  window.getHeight()/static_cast<double>(size.height);
-    double hscale = window.getWidth()/static_cast<double>(size.width);
+    Real vscale =  window.getHeight()/static_cast<Real>(size.height);
+    Real hscale = window.getWidth()/static_cast<Real>(size.width);
     //The scale for subsampling is 1/subsample the size.
-    double vscaless = vscale / static_cast<double>(subsample);
-    double hscaless = hscale / static_cast<double>(subsample);
+    Real vscaless = vscale / static_cast<Real>(subsample);
+    Real hscaless = hscale / static_cast<Real>(subsample);
     //For convenience, we take the midpoint of subsample.
     int mid = (subsample - 1) / 2;
-    double subsamplesq = static_cast<double>(subsample*subsample);
+    Real subsamplesq = static_cast<Real>(subsample*subsample);
 
-    Colord color;
-    Colord colorAccumulator;
+    Colorf color;
+    Colorf colorAccumulator;
 
     for( int row = 0; row < img.rows; row++){
         for ( int col = 0; col < img.cols; col++){
             //We take the average color of the subsample*subsample grid of subsampled colors.
-            colorAccumulator = Colord({0.0, 0.0, 0.0});
+            colorAccumulator = Colorf({0.0f, 0.0f, 0.0f});
             for(int ssrow = 0; ssrow < subsample; ssrow++ ){
                 for(int sscol = 0; sscol < subsample; sscol++ ){
                     //We compute the current location.
                     point = window.bottomLeft
-                            + Complex(hscale*(double)col + hscaless*(double)(sscol - mid),
-                                      vscale*(double)row + vscaless*(double)(ssrow - mid));
+                            + Complex(hscale*(Real)col + hscaless*(Real)(sscol - mid),
+                                      vscale*(Real)row + vscaless*(Real)(ssrow - mid));
                     colorAccumulator += gridColor(f(point));
                 }
             }
@@ -154,30 +188,30 @@ Image RiemannSphere::renderPlanePattern(ComplexRectangle window, Size size, Comp
         }
     }
 
-    cv::cvtColor(img, outimg, cv::COLOR_HSV2BGR);
+    cv::cvtColor(img, outimg, cv::COLOR_RGB2BGR);
     return outimg;
 }
 
-Colord RiemannSphere::gridColor(Complex point) {
+Colorf RiemannSphere::gridColor(Complex point) {
     //These are RGB colors.
-//    Colord Black = Colord({0.0,0.0,0.0});
-//    Colord White = Colord({0xff,0xff,0xff});
-//    Colord Gray = Colord({85.0,85.0,85.0});
-//    Colord DarkGray = Colord({32.0,32.0,32.0});
+    Colorf Black = Colorf({0.0f,0.0f,0.0f});
+    Colorf White = Colorf({255.0f,255.0f,255.0f});
+    Colorf Gray = Colorf({85.0f,85.0f,85.0f});
+    Colorf DarkGray = Colorf({32.0f,32.0f,32.0f});
     //These are HSB colors.
-    Colord Black = Colord({0.0,0.0,0.0});
-    Colord White = Colord({0,0,0xff});
-    Colord Gray = Colord({0.0,0.0,85.0});
-    Colord DarkGray = Colord({0.0,0.0,32.0});
+//    Colorf Black = Colorf({0.0,0.0,0.0});
+//    Colorf White = Colorf({0,0,0xff});
+//    Colorf Gray = Colorf({0.0,0.0,85.0});
+//    Colorf DarkGray = Colorf({0.0,0.0,32.0});
 
-    double re = point.real();
-    double im = point.imag();
-    double re2 = re*re;
-    double im2 = im*im;
-    double dist2 = re2 + im2;
+    Real re = point.real();
+    Real im = point.imag();
+    Real re2 = re*re;
+    Real im2 = im*im;
+    Real dist2 = re2 + im2;
 
-    //White/Black.
-    bool light = !static_cast<bool>(std::abs(((int)std::floor(re*16.0) + (int)std::floor(im*16.0))) % 2);
+    //Grid and White/Black disks.
+    bool light = !static_cast<bool>(std::abs((fastFloori(re*16.0f) + fastFloori(im*16.0f))) % 2);
 
     //Ring at Unity or Infinity
     enum {
@@ -186,49 +220,50 @@ Colord RiemannSphere::gridColor(Complex point) {
         InfinityCircle
     } ring = None;
 
-    if (dist2 <= 1.12890625 && dist2 >= 0.87890625) {
+    if (dist2 <= 1.12890625f && dist2 >= 0.87890625f) {
         ring = UnitCircle;
-    } else if (dist2 <= 0.00390625) {
+    } else if (dist2 <= 0.00390625f) {
         return light ? White : Black;  // ring at 0
-    } else if (dist2 >= 256.0) {
+    } else if (dist2 >= 256.0f) {
         if ((re >= 0) != (im >= 0)) return DarkGray;
         ring = InfinityCircle;  // ring at infinity
     } else if (!light) {
-        return White;
+        return Black;
     }
 
-    Colord color;
-    double dist = dist2 < 1.0 ? 1.0 : std::sqrt(re2 + im2);
-    double distvalue = 255.0 / dist; // Brightness decreases as distance increases.
+    Colorf color;
+    Real dist = dist2 < 1.0f ? 1.0f : std::sqrt(re2 + im2);
+    Real distvalue = 255.0f / dist; // Brightness decreases as distance increases.
     switch (ring) {
         case InfinityCircle:
             // ring at infinity
-            color = Colord({atan2color(im, -re), 255.0, distvalue});
+            color = hb2rgb(atan2color(im, -re), distvalue);
             break;
         case UnitCircle:
             // ring at unity
         {
-            double im12 = (std::fabs(im) - 1.0) * (std::fabs(im) - 1.0);
-            double re12 = (std::fabs(re) - 1.0) * (std::fabs(re) - 1.0);
-            if (im2 > re2 ? re2 + im12 > 0.00390625 : re12 + im2 > 0.00390625) {
+            Real im12 = (std::abs(im) - 1.0f) * (std::abs(im) - 1.0f);
+            Real re12 = (std::abs(re) - 1.0f) * (std::abs(re) - 1.0f);
+            if (im2 > re2 ? re2 + im12 > 0.00390625f : re12 + im2 > 0.00390625f) {
                 //Computes a real between 0 and 8 based on angle.
-                double octang = 4.0 * M_1_PI * std::atan2(im, re) + 4.0;
-                //The second term ranges continuously from 0 to -85.0.
-                double grayvalue = 170.0 - 85.0 * (std::fmod(octang, 2.0) / 2.0);
-                return dist == 1.0 ? Colord({0.0, 0.0, grayvalue})
-                                   : Colord({0.0, 0.0, grayvalue}) + Gray;
+                Real octang = 4.0f * M_1_PIf * fastATan2(im, re) + 4.0f;
+                //The second term ranges continuously from 0 to -85.0 as octang
+                //ranges from 0 to 2, 2 to 4, etc.
+                Real grayvalue = 170.0f - 85.0f * (std::fmod(octang, 2.0f) / 2.0f);
+                return dist == 1.0f ? Colorf({grayvalue, grayvalue, grayvalue})
+                                   : Colorf({grayvalue, grayvalue, grayvalue}) + Gray;
             }
         }
             if (!light) return Black;
             // fallthrough
         default:
-            color = Colord({atan2color(im, -re), 255.0, distvalue});
+            color = hb2rgb(atan2color(im, -re), distvalue);
     }
 
     return color;
 }
 
-//double RiemannSphere::octang(double x, double y) {
+//Real RiemannSphere::octang(Real x, Real y) {
 //    return 4.0*M_1_PI*std::atan2(y, x) + 4.0;
 //}
 
