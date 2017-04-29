@@ -6,23 +6,6 @@
 #include "RiemannSphere.h"
 //#include "SphericalPoint.h"
 
-Complex IdentityFunction(Complex p){
-    return p;
-}
-
-Complex EquirectangularProjection(Complex p){
-    //Maps the rectangle [-pi, pi]X[-pi/2, pi/2] onto the plane.
-
-    Real c, s, cotan;
-    //This computes cotan(phi/2 + M_PI_4).
-    cotan = std::tan(M_PI_4f - p.imag()/2.0f);
-    //This computes sin(theta) and cosine(theta) simultaneously.
-//    __sincos(p.real(), &s, &c);
-    s = std::sin(p.real());
-    c = std::cos(p.real());
-    return std::proj(Complex(c*cotan, s*cotan));
-}
-
 //Very fast approximation to atan2(y, x).
 Real fastATan2(Real y, Real x){
     if(y>0){
@@ -47,42 +30,79 @@ int fastFloori(Real x){
     return static_cast<int>(x) - (x < static_cast<int>(x));
 }
 
-
-
-//Convenience function to map a point to its angle, and then
-//rescale to the interval [0, 1].
-Real atan2color(Real y, Real x){
-    return (fastATan2(y, x) + M_PIf)*M_1_PI_2f;
+//Convenience function to map a point to its color based on
+//the argument and modulus of the point.
+Colori RiemannSphere::atan2color(Real y, Real x, Real dist){
+    //Computes a hue value in[0,1].
+    Real h = (fastATan2(y, x) + M_PIf)*M_1_PI_2f;
+    //Converts the hue into an index into the colorTable.
+    int index = static_cast<int>(h*static_cast<Real>(RiemannSphere_COLORS));
+    //Reciprocal of distance is proportional to brightness.
+    Real invdist = 1.0f/dist;
+    Colori color = colorTable[index];
+    color[0] *= invdist;
+    color[1] *= invdist;
+    color[2] *= invdist;
+    return color;
 }
 
-// Does the math to compute hsb(h, 1, v). Assumes h in [0,1]
-Colorf hb2rgb(Real h, Real v) {
+// Does the math to compute hsb(h, 1, v). Assumes h in [0,1].
+Colori h2rgb(Real h) {
     h = ((h - fastFloorf(h)) * 6.0f);
-    Real x = v * (1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f));
-    int hi = (int)h;
+    //Three tent functions times v.
+//    int x = static_cast<int>(static_cast<Real>(v) * (1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f)));
+    int x = static_cast<int>(255.0f*(1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f)));
+    int hi = static_cast<int>(h);
     switch(hi) {
         case 0:
-            return Colorf({v, x, 0.0f});
+            return Colori({255, x, 0});
         case 1:
-            return Colorf({x, v, 0.0f});
+            return Colori({x, 255, 0});
         case 2:
-            return Colorf({0.0f, v, x});
+            return Colori({0, 255, x});
         case 3:
-            return Colorf({0.0f, x, v});
+            return Colori({0, x, 255});
         case 4:
-            return Colorf({x, 0.0f, v});
-        //case 5:
-        //    return Colorf({v, 0.0, x});
+            return Colori({x, 0, 255});
+        default:
+//        case 5:
+            return Colori({255, 0, x});
     }
-    //case 5:
-    return Colorf({v, 0.0f, x});
+//    //case 5:
+//    return Colori({v, 0, x});
 }
 
-RiemannSphere::RiemannSphere(): hasImage(false), preferredSize(RiemannSphere_DEFAULT_SIZE){
 
+Complex IdentityFunction(Complex p){
+    return p;
+}
+
+
+/*
+ * Maps the rectangle [-pi, pi]X[-pi/2, pi/2] onto the plane. The
+ * point p = (theta, phi), i.e., p.real() = theta and p.imag() = phi.
+ */
+Complex EquirectangularProjection(Complex p){
+    Real c, s, cotan;
+    //This computes cotan(phi/2 + M_PI_4) using the identity tan(x)=cot(pi/2-x).
+    cotan = std::tan(M_PI_4f - p.imag()*0.5f);
+    
+    //This computes sin(theta) and cosine(theta) simultaneously.
+    __sincosf(p.real(), &s, &c);
+    /*
+    s = std::sin(p.real());
+    c = std::cos(p.real());
+    */
+    return std::proj(Complex(c*cotan, s*cotan));
+}
+
+
+RiemannSphere::RiemannSphere(): hasImage(false), preferredSize(RiemannSphere_DEFAULT_SIZE){
+    precomputeColorTable();
 }
 
 RiemannSphere::RiemannSphere(Image img): image(img), hasImage(true), preferredSize(RiemannSphere_DEFAULT_SIZE) {
+    precomputeColorTable();
 }
 
 Image RiemannSphere::getImage() {
@@ -146,7 +166,7 @@ void RiemannSphere::setSize() {
 }
 
 void RiemannSphere::renderSpherePattern() {
-    ComplexRectangle window = ComplexRectangle(Complex(-M_PIf, -M_PI_2f), M_2_PIf, M_PIf);
+    ComplexRectangle window = ComplexRectangle(Complex(-M_PIf, -M_PI_2f), M_2PIf, M_PIf);
     patternImage = renderPlanePattern(window, getSize(), EquirectangularProjection);
 }
 
@@ -163,28 +183,32 @@ Image RiemannSphere::renderPlanePattern(ComplexRectangle window, Size size, Comp
     Real hscaless = hscale / static_cast<Real>(subsample);
     //For convenience, we take the midpoint of subsample.
     int mid = (subsample - 1) / 2;
-    Real subsamplesq = static_cast<Real>(subsample*subsample);
+    int subsamplesq = subsample*subsample;
 
-    Colorf color;
-    Colorf colorAccumulator;
+    Colori color;
+    Colori colorAccumulator;
 
     for( int row = 0; row < img.rows; row++){
         for ( int col = 0; col < img.cols; col++){
             //We take the average color of the subsample*subsample grid of subsampled colors.
-            colorAccumulator = Colorf({0.0f, 0.0f, 0.0f});
+            colorAccumulator = Colori({0, 0, 0});
             for(int ssrow = 0; ssrow < subsample; ssrow++ ){
                 for(int sscol = 0; sscol < subsample; sscol++ ){
                     //We compute the current location.
                     point = window.bottomLeft
                             + Complex(hscale*(Real)col + hscaless*(Real)(sscol - mid),
                                       vscale*(Real)row + vscaless*(Real)(ssrow - mid));
-                    colorAccumulator += gridColor(f(point));
+                    color = gridColor(f(point));
+                    //This is how we avoid a cv::saturate_cast<> call, which is expensive for some reason.
+                    colorAccumulator[0] += color[0];
+                    colorAccumulator[1] += color[1];
+                    colorAccumulator[2] += color[2];
                 }
             }
-            color = colorAccumulator/subsamplesq;
-            img(row, col)[0] = cv::saturate_cast<unsigned char>(color[0]);
-            img(row, col)[1] = cv::saturate_cast<unsigned char>(color[1]);
-            img(row, col)[2] = cv::saturate_cast<unsigned char>(color[2]);
+//            color = (colorAccumulator/subsamplesq);
+            img(row, col)[0] = static_cast<unsigned char>(colorAccumulator[0]/subsamplesq);
+            img(row, col)[1] = static_cast<unsigned char>(colorAccumulator[1]/subsamplesq);
+            img(row, col)[2] = static_cast<unsigned char>(colorAccumulator[2]/subsamplesq);
         }
     }
 
@@ -192,17 +216,12 @@ Image RiemannSphere::renderPlanePattern(ComplexRectangle window, Size size, Comp
     return outimg;
 }
 
-Colorf RiemannSphere::gridColor(Complex point) {
+Colori RiemannSphere::gridColor(Complex point) {
     //These are RGB colors.
-    Colorf Black = Colorf({0.0f,0.0f,0.0f});
-    Colorf White = Colorf({255.0f,255.0f,255.0f});
-    Colorf Gray = Colorf({85.0f,85.0f,85.0f});
-    Colorf DarkGray = Colorf({32.0f,32.0f,32.0f});
-    //These are HSB colors.
-//    Colorf Black = Colorf({0.0,0.0,0.0});
-//    Colorf White = Colorf({0,0,0xff});
-//    Colorf Gray = Colorf({0.0,0.0,85.0});
-//    Colorf DarkGray = Colorf({0.0,0.0,32.0});
+    static const Colori Black = Colori({0,0,0});
+    static const Colori White = Colori({255,255,255});
+    static const Colori Gray = Colori({85,85,85});
+    static const Colori DarkGray = Colori({32,32,32});
 
     Real re = point.real();
     Real im = point.imag();
@@ -231,13 +250,13 @@ Colorf RiemannSphere::gridColor(Complex point) {
         return Black;
     }
 
-    Colorf color;
-    Real dist = dist2 < 1.0f ? 1.0f : std::sqrt(re2 + im2);
-    Real distvalue = 255.0f / dist; // Brightness decreases as distance increases.
+    Colori color;
+    Real dist = dist2 < 1.0f ? 1.0f : (std::sqrt(re2 + im2));
+//    int distvalue = static_cast<int>(255.0f/dist); // Brightness decreases as distance increases.
     switch (ring) {
         case InfinityCircle:
             // ring at infinity
-            color = hb2rgb(atan2color(im, -re), distvalue);
+            color = atan2color(im, re, dist);
             break;
         case UnitCircle:
             // ring at unity
@@ -246,24 +265,38 @@ Colorf RiemannSphere::gridColor(Complex point) {
             Real re12 = (std::abs(re) - 1.0f) * (std::abs(re) - 1.0f);
             if (im2 > re2 ? re2 + im12 > 0.00390625f : re12 + im2 > 0.00390625f) {
                 //Computes a real between 0 and 8 based on angle.
-                Real octang = 4.0f * M_1_PIf * fastATan2(im, re) + 4.0f;
+                Real octang = 4.0f * M_1_PIf * fastATan2(im, -re) + 4.0f;
                 //The second term ranges continuously from 0 to -85.0 as octang
                 //ranges from 0 to 2, 2 to 4, etc.
-                Real grayvalue = 170.0f - 85.0f * (std::fmod(octang, 2.0f) / 2.0f);
-                return dist == 1.0f ? Colorf({grayvalue, grayvalue, grayvalue})
-                                   : Colorf({grayvalue, grayvalue, grayvalue}) + Gray;
+                int grayvalue = static_cast<int>(170.0f - 85.0f * (std::fmod(octang, 2.0f) * 0.5f));
+                return dist == 1.0 ? Colori({grayvalue, grayvalue, grayvalue})
+                                   : Colori({grayvalue, grayvalue, grayvalue}) + Gray;
             }
         }
             if (!light) return Black;
             // fallthrough
         default:
-            color = hb2rgb(atan2color(im, -re), distvalue);
+            color = atan2color(im, re, dist);
     }
 
     return color;
 }
 
-//Real RiemannSphere::octang(Real x, Real y) {
-//    return 4.0*M_1_PI*std::atan2(y, x) + 4.0;
-//}
+/*
+ * Precomputes color values for a predetermined number of angles.
+ */
+void RiemannSphere::precomputeColorTable() {
+    /*
+     * The function h2rgb already assumes h is scaled to be in [0,1].
+     * We split the interval [0, 1] into RiemannSphere_COLORS
+     * pieces.
+     */
+    Real delta = 1.0f / static_cast<Real>(RiemannSphere_COLORS);
+    Real h;
+
+    for(int j = 0; j < RiemannSphere_COLORS; j++){
+        h = static_cast<Real>(j)*delta;
+        colorTable[j] = h2rgb(h);
+    }
+}
 

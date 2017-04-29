@@ -12,6 +12,7 @@ using Color = cv::Vec3b;
 //using Colorf = cv::Vec3d; //color as a double.
 //using Color = std::valarray<unsigned char>;
 using Colorf = cv::Vec3f;
+using Colori = cv::Vec3i;
 
 //class Color {
 //    unsigned char

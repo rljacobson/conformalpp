@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(SOURCE_FILES main.cpp SphericalPoint.cpp SphericalPoint.h RiemannSphere.cpp RiemannSphere.h ComplexRectangle.cpp ComplexRectangle.h Color.cpp Color.h)
 add_executable(conformalpp ${SOURCE_FILES})
 
+# Enable SSE instructions.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -msse3")
+
 ## Mathpresso stuff
 #set(CONFORMALPP_DIR         "${CMAKE_CURRENT_LIST_DIR}"   CACHE PATH "Location of 'conformalpp'")
 #set(MATHPRESSO_DIR             "${CONFORMALPP_DIR}/../mathpresso" CACHE PATH "Location of 'mathpresso'")

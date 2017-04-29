@@ -1,9 +1,26 @@
 index.html
 render.js
 
-# IDE
+# CLion
 .idea
-cmake-build-debug
+
+# CMake
+cmake-build-*
+CMakeFiles
+CMakeScripts
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+
+# Xcode
+*.cbp
+*.build
+*.xcodeproj
+*.trace
+Debug
+
+# OS
 .icon
 .DS_Store
 

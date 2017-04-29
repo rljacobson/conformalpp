@@ -31,6 +31,7 @@ int main(int argc, char** argv)
 
     std::cout << "Rendering equirectangle..." << std::endl;
     img = sphere.getImage();
+    std::cout << "Done." << std::endl;
     ishow(img);
 
     return EXIT_SUCCESS;
