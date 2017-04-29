@@ -5,10 +5,9 @@
 #ifndef CONFORMALPP_RECTANGLE_H
 #define CONFORMALPP_RECTANGLE_H
 
-#include <complex>
+#include "FastMath.h"
 
-using Real = float;
-using Complex = std::complex<Real>;
+using namespace FastMath;
 
 class ComplexRectangle {
 public:

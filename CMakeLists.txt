@@ -3,7 +3,7 @@ project(conformalpp)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp SphericalPoint.cpp SphericalPoint.h RiemannSphere.cpp RiemannSphere.h ComplexRectangle.cpp ComplexRectangle.h Color.cpp Color.h)
+set(SOURCE_FILES src/main.cpp src/SphericalPoint.cpp src/SphericalPoint.h src/RiemannSphere.cpp src/RiemannSphere.h src/ComplexRectangle.cpp src/ComplexRectangle.h src/Color.cpp src/Color.h src/FastMath.cpp src/FastMath.h)
 add_executable(conformalpp ${SOURCE_FILES})
 
 # Enable SSE instructions.

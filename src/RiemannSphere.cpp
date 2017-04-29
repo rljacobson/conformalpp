@@ -4,31 +4,7 @@
 
 #include <cmath>
 #include "RiemannSphere.h"
-//#include "SphericalPoint.h"
 
-//Very fast approximation to atan2(y, x).
-Real fastATan2(Real y, Real x){
-    if(y>0){
-        if (x >= 0)
-            return M_PI_4f - M_PI_4f * (x - y) / (x + y);
-        else
-            return M_3PI_4f - M_PI_4f * (x + y) / (y - x);
-    }else{
-        if (x >= 0)
-            return -M_PI_4f + M_PI_4f * (x + y) / (x - y);
-    }
-    return -M_3PI_4f - M_PI_4f * (x - y) / (y + x);
-}
-
-//The std::floor() function is notoriously slow because it has
-//to implement the IEEE fp spec.
-Real fastFloorf(Real x){
-    int xi = static_cast<int>(x) - (x < static_cast<int>(x));
-    return static_cast<Real>(xi);
-}
-int fastFloori(Real x){
-    return static_cast<int>(x) - (x < static_cast<int>(x));
-}
 
 //Convenience function to map a point to its color based on
 //the argument and modulus of the point.
@@ -47,7 +23,7 @@ Colori RiemannSphere::atan2color(Real y, Real x, Real dist){
 }
 
 // Does the math to compute hsb(h, 1, v). Assumes h in [0,1].
-Colori h2rgb(Real h) {
+Colori RiemannSphere::h2rgb(Real h) {
     h = ((h - fastFloorf(h)) * 6.0f);
     //Three tent functions times v.
 //    int x = static_cast<int>(static_cast<Real>(v) * (1.0f - std::abs(std::fmod(h, 2.0f) - 1.0f)));
@@ -97,11 +73,11 @@ Complex EquirectangularProjection(Complex p){
 }
 
 
-RiemannSphere::RiemannSphere(): hasImage(false), preferredSize(RiemannSphere_DEFAULT_SIZE){
+RiemannSphere::RiemannSphere(): hasImage(false), preferredSize(RiemannSphere_DEFAULT_SIZE), subsample(RiemannSphere_SUBSAMPLE){
     precomputeColorTable();
 }
 
-RiemannSphere::RiemannSphere(Image img): image(img), hasImage(true), preferredSize(RiemannSphere_DEFAULT_SIZE) {
+RiemannSphere::RiemannSphere(Image img): image(img), hasImage(true), preferredSize(RiemannSphere_DEFAULT_SIZE), subsample(RiemannSphere_SUBSAMPLE){
     precomputeColorTable();
 }
 
@@ -152,13 +128,11 @@ Image RiemannSphere::getImage(Size size) {
 
 Size RiemannSphere::getSize() {
     if(hasImage) return Size(image.cols, image.rows);
-
     return preferredSize;
 }
 
 void RiemannSphere::setSize(Size size) {
     preferredSize = size;
-
 }
 
 void RiemannSphere::setSize() {
@@ -182,7 +156,7 @@ Image RiemannSphere::renderPlanePattern(ComplexRectangle window, Size size, Comp
     Real vscaless = vscale / static_cast<Real>(subsample);
     Real hscaless = hscale / static_cast<Real>(subsample);
     //For convenience, we take the midpoint of subsample.
-    int mid = (subsample - 1) / 2;
+    Real mid = static_cast<Real>(subsample - 1)*0.5f;
     int subsamplesq = subsample*subsample;
 
     Colori color;
@@ -196,8 +170,8 @@ Image RiemannSphere::renderPlanePattern(ComplexRectangle window, Size size, Comp
                 for(int sscol = 0; sscol < subsample; sscol++ ){
                     //We compute the current location.
                     point = window.bottomLeft
-                            + Complex(hscale*(Real)col + hscaless*(Real)(sscol - mid),
-                                      vscale*(Real)row + vscaless*(Real)(ssrow - mid));
+                            + Complex(hscale*(Real)col + hscaless*((Real)sscol - mid),
+                                      vscale*(Real)row + vscaless*((Real)ssrow - mid));
                     color = gridColor(f(point));
                     //This is how we avoid a cv::saturate_cast<> call, which is expensive for some reason.
                     colorAccumulator[0] += color[0];
@@ -282,9 +256,8 @@ Colori RiemannSphere::gridColor(Complex point) {
     return color;
 }
 
-/*
- * Precomputes color values for a predetermined number of angles.
- */
+
+// Precomputes color values for a predetermined number of angles.
 void RiemannSphere::precomputeColorTable() {
     /*
      * The function h2rgb already assumes h is scaled to be in [0,1].
