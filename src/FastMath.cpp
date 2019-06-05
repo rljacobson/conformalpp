@@ -35,4 +35,31 @@ namespace FastMath{
         return static_cast<int>(x) - (x < static_cast<int>(x));
     }
 
+
+
+    //No-Op.
+    Complex IdentityFunction(Complex p){
+        return p;
+    }
+
+
+    /*
+     * Maps the rectangle [-pi, pi]X[-pi/2, pi/2] onto the plane. The
+     * point p = (theta, phi), i.e., p.real() = theta and p.imag() = phi.
+     */
+    Complex EquirectangularProjection(Complex p){
+        Real c, s, cotan;
+        //This computes cotan(phi/2 + M_PI_4) using the identity tan(x)=cot(pi/2-x).
+        cotan = std::tan(M_PI_4f - p.imag()*0.5f);
+
+        //This computes sin(theta) and cosine(theta) simultaneously.
+        __sincosf(p.real(), &s, &c);
+        /*
+        s = std::sin(p.real());
+        c = std::cos(p.real());
+        */
+        return std::proj(Complex(c*cotan, s*cotan));
+    }
+
+
 }

@@ -4,21 +4,18 @@ project(conformalpp)
 set(CMAKE_CXX_STANDARD 11)
 
 set(SOURCE_FILES src/main.cpp src/SphericalPoint.cpp src/SphericalPoint.h src/RiemannSphere.cpp src/RiemannSphere.h src/ComplexRectangle.cpp src/ComplexRectangle.h src/Color.cpp src/Color.h src/FastMath.cpp src/FastMath.h)
-add_executable(conformalpp ${SOURCE_FILES})
+add_executable(conformalpp ${SOURCE_FILES} )
 
 # Enable SSE instructions.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -msse3")
 
 ## Mathpresso stuff
-#set(CONFORMALPP_DIR         "${CMAKE_CURRENT_LIST_DIR}"   CACHE PATH "Location of 'conformalpp'")
-#set(MATHPRESSO_DIR             "${CONFORMALPP_DIR}/../mathpresso" CACHE PATH "Location of 'mathpresso'")
-#
-#if(NOT DEFINED MATHPRESSO_EMBED)
-#    set(MATHPRESSO_EMBED TRUE CACHE BOOLEAN "")
-#endif()
-#include("${MATHPRESSO_DIR}/CMakeLists.txt")
+set(MATHPRESSO_DIR ../mathpresso)
+include("${MATHPRESSO_DIR}/CMakeLists.txt")
+include_directories(${MATHPRESSO_INCLUDE_DIR})
 
 # OpenCV stuff
 find_package( OpenCV 3 REQUIRED )
-target_link_libraries( conformalpp ${OpenCV_LIBS} )
+
+target_link_libraries( conformalpp ${OpenCV_LIBS} mathpresso)
 

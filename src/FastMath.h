@@ -24,6 +24,8 @@ namespace FastMath {
     Real fastATan2(Real y, Real x);
     Real fastFloorf(Real x);
     int fastFloori(Real x);
+    Complex IdentityFunction(Complex p);
+    Complex EquirectangularProjection(Complex p);
 
 }
 

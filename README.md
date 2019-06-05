@@ -5,6 +5,7 @@ This is a C++ translation of David Bau's beautiful web-based [conformal function
 # Dependencies
 
 * OpenCV 3: Used for some data structures and viewing images.
+* Mathpresso: Jitting of user-input mathematical expressions.
 * CMake
 
 # Building
@@ -24,7 +25,7 @@ ConformalPP: Copyright 2017 Robert Jacobson.
 
 Conformal: Copyright 2014 David Bau.
 
-Both this code and David Bau's code is released under the MIT license reproduced below.
+Both this code and David Bau's code are released under the MIT license reproduced below.
 
 ## LICENSE (MIT)
 
